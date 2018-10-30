@@ -14,7 +14,7 @@ namespace quilting {
   /////////////////////////////////////////////////
   class EpsilonBlockSelector : public BlockSelector {
   public:
-    EpsilonBlockSelector(BlocksGenerator * blocksGenerator,ErrorImg1Img2 * errorImg1Img2, double epsilon);
+    EpsilonBlockSelector(BlocksGenerator * blocksGenerator,ErrorImg1Img2 * errorImg1Img2, double epsilon, bool redraw = false);
     ~EpsilonBlockSelector();
     Block operator()(const Mat & output, int x, int y) override;
 
@@ -23,6 +23,8 @@ namespace quilting {
     double m_epsilon;
     vector<Block> m_candidates;
     randutils::mt19937_rng m_rng;
+    bool m_redraw;
+    bool m_firstDraw;
   };
 
 }

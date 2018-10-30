@@ -13,13 +13,14 @@ namespace quilting {
 
   class TopTenBlockSelector : public BlockSelector {
   public:
-    TopTenBlockSelector(BlocksGenerator * blocksGenerator,ErrorImg1Img2 * errorImg1Img2, bool redraw = true);
+    TopTenBlockSelector(BlocksGenerator * blocksGenerator,ErrorImg1Img2 * errorImg1Img2, bool redraw = false);
     ~TopTenBlockSelector();
     virtual Block operator()(const Mat & output, int i, int j);
 
   protected:
     ErrorImg1Img2 * m_errorImg1Img2;
     bool m_redraw;
+    bool m_firstDraw;
     randutils::mt19937_rng m_rng;
   };
 

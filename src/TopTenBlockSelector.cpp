@@ -5,11 +5,8 @@
  ***********************************************/
 
 quilting::TopTenBlockSelector::TopTenBlockSelector(BlocksGenerator * blocksGenerator, ErrorImg1Img2 * errorImg1Img2, bool redraw)
-  : BlockSelector(blocksGenerator), m_errorImg1Img2(errorImg1Img2), m_redraw(redraw)
+  : BlockSelector(blocksGenerator), m_errorImg1Img2(errorImg1Img2), m_redraw(redraw), m_firstDraw(true)
 {
-  if (!redraw) {
-    (*m_blocksGenerator)++;
-  }
 }
 
 quilting::TopTenBlockSelector::~TopTenBlockSelector()
@@ -26,6 +23,10 @@ quilting::TopTenBlockSelector::~TopTenBlockSelector()
  */
 quilting::Block quilting::TopTenBlockSelector::operator()(const Mat & output, int i, int j)
 {
+  if(!m_firstDraw){
+    (*m_blocksGenerator)++;
+    m_firstDraw = false;
+  }
   if (m_redraw) { // Regenerate library each draw
     (*m_blocksGenerator)++;
   }

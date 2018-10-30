@@ -4,14 +4,9 @@
  *  epsilonBlockSelector
  ***********************************************/
 quilting::EpsilonBlockSelector::EpsilonBlockSelector(BlocksGenerator *blocksGenerator, ErrorImg1Img2 *errorImg1Img2, double epsilon)
-  : BlockSelector(blocksGenerator), m_errorImg1Img2(errorImg1Img2), m_epsilon(epsilon)
+  : BlockSelector(blocksGenerator), m_errorImg1Img2(errorImg1Img2), m_epsilon(epsilon),  m_redraw(redraw), m_firstDraw(true)
 {
-  (*m_blocksGenerator)++;
-  // reserve capacity for m_candidates (same size as m_corners for security)
-  size_t vecsize = (*m_blocksGenerator)().size();
-  std::cout << "m_candidates size:" << vecsize << std::endl;
-  m_candidates.reserve(vecsize);
-  assert(m_epsilon > 0.0 && m_epsilon < 1.0);
+
 }
 
 quilting::EpsilonBlockSelector::~EpsilonBlockSelector()
@@ -21,6 +16,19 @@ quilting::EpsilonBlockSelector::~EpsilonBlockSelector()
 
 quilting::Block quilting::EpsilonBlockSelector::operator()(const Mat &output, int i, int j)
 {
+
+  if(m_firstDraw){
+    (*m_blocksGenerator)++;
+    // reserve capacity for m_candidates (same size as m_corners for security)
+    size_t vecsize = (*m_blocksGenerator)().size();
+    std::cout << "m_candidates size:" << vecsize << std::endl;
+    m_candidates.reserve(vecsize);
+    assert(m_epsilon > 0.0 && m_epsilon < 1.0);
+    m_firstDraw = false;
+  }
+  if(m_redraw){
+    (*m_blocksGenerator)++;
+  }
   // Get Pold (block to be filled) in Is (result image) at pos (x,y) with a block size (h,w)
   Mat * Pold = extractSubOutput(output,Range(i,i+m_blocksGenerator->w()),Range(j,j+m_blocksGenerator->h()));
   // Calculer l'erreur entre Pold et chaque bloc Pin dans Io, conserver dmin;
