@@ -34,7 +34,7 @@ int main(int argc, const char ** argv) {
   }
 
   if (output.channels() != 4) {
-    cv::cvtColor(output, output,CV_BGR2BGRA,4);
+    cv::cvtColor(output, output,cv::COLOR_BGR2BGRA,4);
   }
 
   namedWindow("Display window", WINDOW_AUTOSIZE);

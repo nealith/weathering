@@ -50,13 +50,6 @@ void quilting::TextureGenerator::operator()(Mat & output)
   Mat outputAlpha(output.rows,output.cols,CV_8UC4, Scalar(0));
   (*m_positionChooser)[output]; //grabs output's width and height
 
-  // Dans le papier ils initialisent l'output avec un premier bloc random venant
-  // de l'input sur lequel est ensuite lancé l'algo. Ca évite de se retrouver avec un calcul
-  // d'erreur non nécessaire et en plus sur une zone vide lorsqu'on pose le 1er bloc. (Sans initialisation
-  // c'est ce qu'il se passe, on appelle le blockSelector qui appelle AverageSumError qui regarde
-  // si y'a des cases avec alpha à 255 (overlap) pour calculer, mais y'en a pas pour le 1er bloc
-  // et il sort des NaN à fond, je sais même pas comment std::sort crash pas avec des NaN...)
-
   // Initialisation de Is avec un bloc Pin choisi uniformément dans Io.
   quilting::Block block = (*m_blockSelector).getInitRandomBlock();
   for (int ib(0); ib < block.ptr->rows; ++ib) {

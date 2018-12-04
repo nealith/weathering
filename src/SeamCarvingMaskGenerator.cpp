@@ -50,7 +50,7 @@ std::list<int * > quilting::SeamCarvingMaskGenerator::operator()(const Mat &bloc
   floodFill(masktmpf,cv::Point(block.cols/2,block.rows/2), Scalar(1.0));
   masktmpf.convertTo(masktmp,CV_64FC1);
 
-  Mat kernel = getStructuringElement( CV_SHAPE_RECT, Size( 3, 3 ) );
+  Mat kernel = getStructuringElement( MORPH_RECT, Size( 3, 3 ) );
 
   morphologyEx(masktmp,mask, MORPH_OPEN, kernel);
 

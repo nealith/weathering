@@ -3,7 +3,7 @@
 /***********************************************
  *  epsilonBlockSelector
  ***********************************************/
-quilting::EpsilonBlockSelector::EpsilonBlockSelector(BlocksGenerator *blocksGenerator, ErrorImg1Img2 *errorImg1Img2, double epsilon)
+quilting::EpsilonBlockSelector::EpsilonBlockSelector(BlocksGenerator *blocksGenerator, ErrorImg1Img2 *errorImg1Img2, double epsilon, bool redraw)
   : BlockSelector(blocksGenerator), m_errorImg1Img2(errorImg1Img2), m_epsilon(epsilon),  m_redraw(redraw), m_firstDraw(true)
 {
 
