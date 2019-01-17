@@ -13,12 +13,21 @@ namespace weathering {
     double a;
   };
 
-  struct objective_function_data {
+  struct objective_function_degree_map_data {
     vector<wdi> * omega;
     const Mat * input;
   };
 
-  double objective_function(const std::vector<double> &x, std::vector<double> &grad, void* f_data);
+  double objective_function_degree_map(const std::vector<double> &x, std::vector<double> &grad, void* f_data);
+
+  struct objective_function_segmentation_data {
+    vector<wdi> * omega;
+    const Mat * input;
+  };
+
+  double objective_function_segmentation(const std::vector<double> &x, std::vector<double> &grad, void* f_data);
+
+  Mat patch_match(const Mat & to_fill, const Mat & to_fill_mask , const Mat & exemplar);
 
   /////////////////////////////////////////////////
   /// \brief Generate weathered image
@@ -35,9 +44,10 @@ namespace weathering {
     Rect2d * userInput(const Mat & input);
     Mat * grabCut(const Mat & input);
     Mat computeWeatheringDegreeMap(const Mat & user_input_grabcut, const Mat & mask_input_grabcut, Rect2d * user_input);
-    Mat computeShadowMap(Mat & userInput);
-    Mat computeWeatheringExemplar(Mat & userInput, Mat & weatheringDegreeMap);
-    Mat updateWeatheringDegreeMap(Mat & weatheringDegreeMap, float degree);
+    Mat computeShadowMap(const Mat & user_input_grabcut, const Mat & mask_input_grabcut, const Mat & degree_map, const Mat & segmentation);
+    Mat segment(const Mat & degree_map, const Mat & mask_input_grabcut);
+    Mat computeWeatheringExemplar(Mat & user_input_grabcut, Mat & degree_map);
+    Mat updateWeatheringDegreeMap(const Mat & degree_map, const Mat & segmentation, unsigned int degree);
     Mat computeWeatheringImage(Mat & weatheringDegreeMapUpdated, Mat & shadowMap, Mat & output);
 
   public:
