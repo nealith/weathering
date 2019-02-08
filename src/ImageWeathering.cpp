@@ -4,6 +4,20 @@
 
 #include <cmath>
 
+#include "TextureTransfert.h"
+#include "AverageSumError.h"
+#include "FullBlocksGenerator.h"
+#include "BorderKernelBlur.h"
+#include "RandomBlocksGenerator.h"
+#include "ClassicPositionChooser.h"
+#include "SeamCarvingMaskGenerator.h"
+#include "DiffSumSqrtAtIJ.h"
+#include "TopTenBlockSelector.h"
+#include "EpsilonBlockSelector.h"
+#include "SmoothMask.h"
+
+#include "NormalizedInvertedErrorMask.h"
+
 /***********************************************
  *  ImageWeathering
  ***********************************************/
@@ -18,6 +32,8 @@ void weathering::ImageWeathering::operator()(Mat & input,std::list<std::pair<flo
 {
 
   Mat * user_input_grabcut = grabCut(input);
+  Mat input_lab;
+  cvtColor(input, input_lab, CV_BGR2Lab);
 
     Rect2d * user_input = userInput(user_input_grabcut[3]);
 
@@ -49,12 +65,16 @@ void weathering::ImageWeathering::operator()(Mat & input,std::list<std::pair<flo
 
 
   std::cout << "compute exemplar ..." << '\n';
-  Mat exemplar = computeWeatheringExemplar(input,degree_map);
+  Rect2d exemplar_rect;
+  Mat exemplar = computeWeatheringExemplar(input,degree_map,exemplar_rect);
 
   imshow("exemplar",exemplar);
+  Mat exemplar_lab;
+  cvtColor(exemplar, exemplar_lab, CV_BGR2Lab);
+
 
   std::cout << "update degree map..." << '\n';
-  Mat updated_degree_map = updateWeatheringDegreeMap(degree_map,segmentation,20);
+  Mat updated_degree_map = updateWeatheringDegreeMap(degree_map,segmentation,50);
 
   Mat updated_degree_map_uchar(degree_map.rows, degree_map.cols, CV_8UC1);
 
@@ -69,6 +89,19 @@ void weathering::ImageWeathering::operator()(Mat & input,std::list<std::pair<flo
   std::cout << "finish" << '\n';
 
   imshow("updated_degree_map",updated_degree_map_uchar);
+
+  Mat input_lab_clone = input_lab.clone();
+
+  computeWeatheringImage(input_lab_clone,updated_degree_map,exemplar_lab,exemplar_rect,segmentation,shadow_map,0.5);
+
+  Mat output_bgr;
+  cvtColor(input_lab_clone, output_bgr, CV_Lab2BGR);
+
+  imshow("image weathered",output_bgr);
+
+  Mat diff = output_bgr - input;
+
+  imshow("image weathered diff",diff);
 
   waitKey(0);
 
@@ -455,7 +488,7 @@ Mat patch_match(const Mat & to_fill, const Mat & to_fill_mask, const Mat & exemp
 
 }
 
-Mat weathering::ImageWeathering::computeWeatheringExemplar(Mat & user_input_grabcut, Mat & degree_map)
+Mat weathering::ImageWeathering::computeWeatheringExemplar(Mat & user_input_grabcut, Mat & degree_map, Rect2d & coord)
 {
 
   int s(300);
@@ -488,7 +521,10 @@ Mat weathering::ImageWeathering::computeWeatheringExemplar(Mat & user_input_grab
 
   tmp_exemplar = user_input_grabcut(Range(ei,ei+s),Range(ej,ej+s));
   std::cout << "select a area with only wheathered pixel" << '\n';
-  exemplar = tmp_exemplar(selectROI(tmp_exemplar));
+  coord = selectROI(tmp_exemplar);
+  exemplar = tmp_exemplar(coord);
+  coord.x += ej;
+  coord.y += ei;
 
   return exemplar;
 
@@ -522,7 +558,7 @@ Mat weathering::ImageWeathering::updateWeatheringDegreeMap(const Mat & degree_ma
             }
           }
 
-          ptr_propagation_map[j] /= count;
+          ptr_propagation_map[j] /= (double)count;
         }
 
 
@@ -535,6 +571,9 @@ Mat weathering::ImageWeathering::updateWeatheringDegreeMap(const Mat & degree_ma
       for (unsigned int j = 0; j < degree_map.cols; j++) {
         if (segmentation.ptr<unsigned char>(i)[j] == 0) {
           ptr_updated_degree_map[j] += (ptr_propagation_map[j] * ks*kw);
+          if (ptr_updated_degree_map[j] > 1.0) {
+            ptr_updated_degree_map[j] = 1.0;
+          }
         }
       }
     }
@@ -547,7 +586,112 @@ Mat weathering::ImageWeathering::updateWeatheringDegreeMap(const Mat & degree_ma
 
 }
 
-Mat weathering::ImageWeathering::computeWeatheringImage(Mat & weatheringDegreeMapUpdated, Mat & shadowMap, Mat & output)
+Mat weathering::ImageWeathering::computeWeatheringImage(const Mat & input, const Mat & updated_degree_map, const Mat & exemplar, const Rect2d & exemplar_rect, const Mat & segmentation, const Mat & shadow_map, double threshold)
 {
+
+  Mat output = input.clone();
+
+  // Parms par défaut : bw:32, bh:32, libsize:64, overlapsize:8; epsilon:0.2
+  bool redraw = true;
+
+  quilting::DiffSumSqrtAtIJ * diff = new quilting::DiffSumSqrtAtIJ();
+  quilting::AverageSumError * ase = new quilting::AverageSumError(diff);
+
+  Mat exemplar_ = exemplar.clone();
+
+  quilting::RandomBlocksGenerator * g = new quilting::RandomBlocksGenerator(exemplar_,16,16,128);
+  quilting::TopTenBlockSelector * s = new quilting::TopTenBlockSelector(g,ase, redraw);
+
+
+
+  //quilting::FullBlocksGenerator * g = new quilting::FullBlocksGenerator(exemplar_, 32, 32);
+  //quilting::EpsilonBlockSelector * s = new quilting::EpsilonBlockSelector(g, ase, 0.2);
+
+  quilting::ClassicPositionChooser * p = new quilting::ClassicPositionChooser();
+
+  quilting::ErrorMapImg1Img2 * e = new quilting::ErrorMapImg1Img2(diff);
+  quilting::NormalizedInvertedErrorMask * m = new quilting::NormalizedInvertedErrorMask(e,Range(5000,5000));
+
+  quilting::TextureTransfert tg = quilting::TextureTransfert(p,s,m,0);
+  //quilting::BorderPostTreatement * bpt = new quilting::BorderKernelBlur(5);
+  //quilting::SmoothMask * sm = new quilting::SmoothMask(0.1,16);
+
+  //tg.setBorderPostTreatement(bpt);
+  //tg.setMaskPostTreatement(sm);
+
+  tg(output,
+    [input,output,exemplar, exemplar_,exemplar_rect,updated_degree_map,segmentation,shadow_map,threshold](const Mat & in, Mat & out){
+      if (in.data == output.data) {
+        out = Mat(in.rows,in.cols,CV_8UC4);
+        for (unsigned int i = 0; i < in.rows; i++) {
+          for (unsigned int j = 0; j < in.cols; j++) {
+              double degree = updated_degree_map.ptr<double>(i)[j];
+              if (degree < threshold || segmentation.ptr<unsigned char>(i)[j] == 255) {
+                degree = 0.0;
+              }
+              int degree_i = (int)(degree * 255.0);
+              out.ptr<Vec4b>(i)[j].val[0] = degree_i;
+              out.ptr<Vec4b>(i)[j].val[1] = degree_i;
+              out.ptr<Vec4b>(i)[j].val[2] = degree_i;
+              out.ptr<Vec4b>(i)[j].val[3] = 0;
+              if (degree_i == 0) {
+                out.ptr<Vec4b>(i)[j].val[3] = 255;
+              }
+
+          }
+        }
+        std::cout << "display maching mask for input" << '\n';
+        imshow("Display matching input", out);
+        waitKey(0);
+        std::cout << "test2" << '\n';
+      } else if(in.data == exemplar_.data){
+        out = Mat(in.rows,in.cols,CV_8UC3);
+
+        Mat degree_map_exemplar = updated_degree_map(exemplar_rect);
+
+        for (unsigned int i = 0; i < in.rows; i++) {
+          for (unsigned int j = 0; j < in.cols; j++) {
+              double degree = degree_map_exemplar.ptr<double>(i)[j];
+              int degree_i = (int)(degree * 255.0);
+              out.ptr<Vec3b>(i)[j].val[0] = degree_i;
+              out.ptr<Vec3b>(i)[j].val[1] = degree_i;
+              out.ptr<Vec3b>(i)[j].val[2] = degree_i;
+
+          }
+        }
+
+        std::cout << "display maching mask for exemplar" << '\n';
+        imshow("Display matching exemplar", out);
+        waitKey(0);
+        std::cout << "test1" << '\n';
+      }
+
+
+    }
+  );
+
+  std::cout << "post treatement" << '\n';
+
+  for (unsigned int i = 0; i < output.rows; i++) {
+    for (unsigned int j = 0; j < output.cols; j++) {
+      double degree = updated_degree_map.ptr<double>(i)[j];
+      if (degree < threshold) {
+        degree = 0.0;
+      }
+      if (segmentation.ptr<double>(i)[j] == 0) {
+        output.ptr<Vec3b>(i)[j].val[0] = (output.ptr<Vec3b>(i)[j].val[0] * degree + input.ptr<Vec3b>(i)[j].val[0] * (1-degree)) * shadow_map.ptr<double>(i)[j];
+        output.ptr<Vec3b>(i)[j].val[1] = output.ptr<Vec3b>(i)[j].val[1] * degree + input.ptr<Vec3b>(i)[j].val[1] * (1-degree);
+        output.ptr<Vec3b>(i)[j].val[2] = output.ptr<Vec3b>(i)[j].val[2] * degree + input.ptr<Vec3b>(i)[j].val[2] * (1-degree);
+      }
+
+
+    }
+  }
+
+  return output;
+
+
+
+
 
 }

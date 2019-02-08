@@ -1,5 +1,5 @@
-#ifndef TEXTUREGENERATOR_H
-#define TEXTUREGENERATOR_H
+#ifndef IMAGEWEATHERING_H
+#define IMAGEWEATHERING_H
 
 #include "CORE.h"
 #include <opencv2/tracking.hpp>
@@ -46,9 +46,9 @@ namespace weathering {
     Mat computeWeatheringDegreeMap(const Mat & user_input_grabcut, const Mat & mask_input_grabcut, Rect2d * user_input);
     Mat computeShadowMap(const Mat & user_input_grabcut, const Mat & mask_input_grabcut, const Mat & degree_map, const Mat & segmentation);
     Mat segment(const Mat & degree_map, const Mat & mask_input_grabcut);
-    Mat computeWeatheringExemplar(Mat & user_input_grabcut, Mat & degree_map);
+    Mat computeWeatheringExemplar(Mat & user_input_grabcut, Mat & degree_map, Rect2d & coord);
     Mat updateWeatheringDegreeMap(const Mat & degree_map, const Mat & segmentation, unsigned int degree);
-    Mat computeWeatheringImage(Mat & weatheringDegreeMapUpdated, Mat & shadowMap, Mat & output);
+    Mat computeWeatheringImage(const Mat & input, const Mat & updated_degree_map, const Mat & exemplar, const Rect2d & exemplar_rect, const Mat & segmentation, const Mat & shadow_map, double threshold);
 
   public:
 
