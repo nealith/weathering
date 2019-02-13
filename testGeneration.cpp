@@ -12,7 +12,7 @@
 
 int main(int argc, const char ** argv) {
 
-  String inputPath( "pave.png" ); // by default
+  String inputPath( "../textures/ground9.jpg" ); // by default
 
   if( argc > 1)
   {

@@ -4,6 +4,7 @@
 
 #include <cmath>
 
+#include "TextureGenerator.h"
 #include "TextureTransfert.h"
 #include "AverageSumError.h"
 #include "FullBlocksGenerator.h"
@@ -74,7 +75,7 @@ void weathering::ImageWeathering::operator()(Mat & input,std::list<std::pair<flo
 
 
   std::cout << "update degree map..." << '\n';
-  Mat updated_degree_map = updateWeatheringDegreeMap(degree_map,segmentation,200);
+  Mat updated_degree_map = updateWeatheringDegreeMap(degree_map,segmentation,10);
 
   Mat updated_degree_map_uchar(degree_map.rows, degree_map.cols, CV_8UC1);
 
@@ -94,9 +95,12 @@ void weathering::ImageWeathering::operator()(Mat & input,std::list<std::pair<flo
 
   Mat result = computeWeatheringImage(input_lab_clone,updated_degree_map,exemplar_lab,exemplar_rect,segmentation,shadow_map,0.5);
 
-  imshow("image weathered",result);
+  Mat result_bgr;
+  cvtColor(result,result_bgr,CV_Lab2BGR);
 
-  Mat diff = result - input;
+  imshow("image weathered",result_bgr);
+
+  Mat diff = result_bgr - input;
 
   imshow("image weathered diff",diff);
 
@@ -550,7 +554,7 @@ Mat weathering::ImageWeathering::updateWeatheringDegreeMap(const Mat & degree_ma
           ptr_propagation_map[j] = 0.0;
           for (unsigned int in = fmax(0,i-1); in < fmin(degree_map.rows, i+1); in++) {
             for (unsigned int jn = fmax(0,j-1); jn < fmin(degree_map.rows, j+1); jn++) {
-              ptr_propagation_map[j]+=degree_map.ptr<double>(in)[jn];
+              ptr_propagation_map[j]+=updated_degree_map.ptr<double>(in)[jn];
               count++;
             }
           }
@@ -593,10 +597,6 @@ Mat weathering::ImageWeathering::computeWeatheringImage(const Mat & input, const
   cvtColor(input,input_bgr,CV_Lab2BGR);
 
 
-  Mat output;
-
-  cvtColor(input_bgr,output,CV_BGR2BGRA);
-
   // Parms par défaut : bw:32, bh:32, libsize:64, overlapsize:8; epsilon:0.2
   bool redraw = true;
 
@@ -605,96 +605,80 @@ Mat weathering::ImageWeathering::computeWeatheringImage(const Mat & input, const
 
   Mat exemplar_ = exemplar_bgr.clone();
 
-  quilting::RandomBlocksGenerator * g = new quilting::RandomBlocksGenerator(exemplar_,16,16,128);
-  quilting::TopTenBlockSelector * s = new quilting::TopTenBlockSelector(g,ase, redraw);
+  //quilting::RandomBlocksGenerator * g = new quilting::RandomBlocksGenerator(exemplar_,64,64,128);
+  //quilting::TopTenBlockSelector * s = new quilting::TopTenBlockSelector(g,ase, redraw);
 
 
 
-  //quilting::FullBlocksGenerator * g = new quilting::FullBlocksGenerator(exemplar_, 32, 32);
-  //quilting::EpsilonBlockSelector * s = new quilting::EpsilonBlockSelector(g, ase, 0.2);
+  quilting::FullBlocksGenerator * g = new quilting::FullBlocksGenerator(exemplar_, 64, 64);
+  quilting::EpsilonBlockSelector * s = new quilting::EpsilonBlockSelector(g, ase, 0.2);
 
   quilting::ClassicPositionChooser * p = new quilting::ClassicPositionChooser();
 
   quilting::ErrorMapImg1Img2 * e = new quilting::ErrorMapImg1Img2(diff);
-  quilting::NormalizedInvertedErrorMask * m = new quilting::NormalizedInvertedErrorMask(e,Range(5000,5000));
+  quilting::SeamCarvingMaskGenerator * m = new quilting::SeamCarvingMaskGenerator(e);
 
-  quilting::TextureTransfert tg = quilting::TextureTransfert(p,s,m,0);
-  //quilting::BorderPostTreatement * bpt = new quilting::BorderKernelBlur(5);
-  //quilting::SmoothMask * sm = new quilting::SmoothMask(0.1,16);
+  quilting::TextureGenerator tg = quilting::TextureGenerator(p,s,m,16);
 
-  //tg.setBorderPostTreatement(bpt);
-  //tg.setMaskPostTreatement(sm);
-  tg(output,
-    [input_bgr,output,exemplar_bgr, exemplar_,exemplar_rect,updated_degree_map,segmentation,shadow_map,threshold](const Mat & in, Mat & out){
-      if (in.data == output.data) {
-        out = Mat(in.rows,in.cols,CV_8UC4);
-        for (unsigned int i = 0; i < in.rows; i++) {
-          for (unsigned int j = 0; j < in.cols; j++) {
-              double degree = updated_degree_map.ptr<double>(i)[j];
-              if (degree < threshold || segmentation.ptr<unsigned char>(i)[j] == 255) {
-                degree = 0.0;
-              }
-              int degree_i = floor(degree * 255.0);
-              out.ptr<Vec4b>(i)[j].val[0] = degree_i;
-              out.ptr<Vec4b>(i)[j].val[1] = degree_i;
-              out.ptr<Vec4b>(i)[j].val[2] = degree_i;
-              out.ptr<Vec4b>(i)[j].val[3] = 255;
-
-          }
-        }
-        std::cout << "display maching mask for input" << '\n';
-        imshow("Display matching input", out);
-        waitKey(0);
-        std::cout << "test2" << '\n';
-      } else if(in.data == exemplar_.data){
-        out = Mat(in.rows,in.cols,CV_8UC3);
-
-        Mat degree_map_exemplar = updated_degree_map(exemplar_rect);
-
-        for (unsigned int i = 0; i < in.rows; i++) {
-          for (unsigned int j = 0; j < in.cols; j++) {
-              double degree = degree_map_exemplar.ptr<double>(i)[j];
-              int degree_i = floor(degree * 255.0);
-              out.ptr<Vec3b>(i)[j].val[0] = degree_i;
-              out.ptr<Vec3b>(i)[j].val[1] = degree_i;
-              out.ptr<Vec3b>(i)[j].val[2] = degree_i;
-
-          }
-        }
-
-        std::cout << "display maching mask for exemplar" << '\n';
-        imshow("Display matching exemplar", out);
-        waitKey(0);
-        std::cout << "test1" << '\n';
-      }
-
-
-    }
-  );
-
-  std::cout << "post treatement" << '\n';
-
-  imshow("image weathered 2",output);
-
-  waitKey(0);
+  Mat output(input.rows, input.cols, CV_8UC4);
 
   for (unsigned int i = 0; i < output.rows; i++) {
     for (unsigned int j = 0; j < output.cols; j++) {
+      if (segmentation.ptr<unsigned char>(i)[j] == 0 || segmentation.ptr<unsigned char>(i)[j] == 128) {
+        output.ptr<Vec4b>(i)[j].val[0] = 0;
+        output.ptr<Vec4b>(i)[j].val[1] = 0;
+        output.ptr<Vec4b>(i)[j].val[2] = 0;
+        output.ptr<Vec4b>(i)[j].val[3] = 0;
+      } else {
+        output.ptr<Vec4b>(i)[j].val[0] = input_bgr.ptr<Vec3b>(i)[j].val[0];
+        output.ptr<Vec4b>(i)[j].val[1] = input_bgr.ptr<Vec3b>(i)[j].val[1];
+        output.ptr<Vec4b>(i)[j].val[2] = input_bgr.ptr<Vec3b>(i)[j].val[2];
+        output.ptr<Vec4b>(i)[j].val[3] = 255;
+      }
+    }
+  }
+
+  tg(output);
+
+  std::cout << "post treatement" << '\n';
+
+  imshow("texture generated",output);
+
+  waitKey(0);
+
+  std::vector<cv::Mat1b> channels_bgra;
+  std::vector<cv::Mat1b> channels_bgr(3);
+  cv::split(output, channels_bgra);
+
+
+  Mat output_bgr, output_lab;
+  channels_bgr[0] = channels_bgra[0];
+  channels_bgr[1] = channels_bgra[1];
+  channels_bgr[2] = channels_bgra[2];
+
+  cv::merge(channels_bgr, output_bgr);
+
+  cv:cvtColor(output_bgr,output_lab,CV_BGR2Lab);
+
+  Mat output_result = input.clone();
+
+  for (unsigned int i = 0; i < output_lab.rows; i++) {
+    for (unsigned int j = 0; j < output_lab.cols; j++) {
       double degree = updated_degree_map.ptr<double>(i)[j];
       if (degree < threshold) {
         degree = 0.0;
       }
-      if (segmentation.ptr<double>(i)[j] == 0) {
-        output.ptr<Vec4b>(i)[j].val[0] = (output.ptr<Vec4b>(i)[j].val[0] * degree + input.ptr<Vec4b>(i)[j].val[0] * (1-degree)) * shadow_map.ptr<double>(i)[j];
-        output.ptr<Vec4b>(i)[j].val[1] = output.ptr<Vec4b>(i)[j].val[1] * degree + input.ptr<Vec4b>(i)[j].val[1] * (1-degree);
-        output.ptr<Vec4b>(i)[j].val[2] = output.ptr<Vec4b>(i)[j].val[2] * degree + input.ptr<Vec4b>(i)[j].val[2] * (1-degree);
+      if (segmentation.ptr<unsigned char>(i)[j] == 0) {
+        output_result.ptr<Vec3b>(i)[j].val[0] = (output_lab.ptr<Vec3b>(i)[j].val[0] * degree + input.ptr<Vec3b>(i)[j].val[0] * (1-degree)) * shadow_map.ptr<double>(i)[j];
+        output_result.ptr<Vec3b>(i)[j].val[1] = output_lab.ptr<Vec3b>(i)[j].val[1] * degree + input.ptr<Vec3b>(i)[j].val[1] * (1-degree);
+        output_result.ptr<Vec3b>(i)[j].val[2] = output_lab.ptr<Vec3b>(i)[j].val[2] * degree + input.ptr<Vec3b>(i)[j].val[2] * (1-degree);
       }
 
 
     }
   }
 
-  return output;
+  return output_result;
 
 
 
