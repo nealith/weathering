@@ -100,8 +100,6 @@ void quilting::TextureTransfert::operator()(Mat & output, std::function<void (co
     Mat mask;
     std::list<int *> border = (*m_maskGenerator)(*(block.ptr),outputMatchingMap,i,j,mask,m_overlapSize);
 
-
-
     if (m_maskPostTreatement != nullptr) {
       (*m_maskPostTreatement)(mask);
     }

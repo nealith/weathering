@@ -74,7 +74,7 @@ void weathering::ImageWeathering::operator()(Mat & input,std::list<std::pair<flo
 
 
   std::cout << "update degree map..." << '\n';
-  Mat updated_degree_map = updateWeatheringDegreeMap(degree_map,segmentation,50);
+  Mat updated_degree_map = updateWeatheringDegreeMap(degree_map,segmentation,200);
 
   Mat updated_degree_map_uchar(degree_map.rows, degree_map.cols, CV_8UC1);
 
@@ -92,14 +92,11 @@ void weathering::ImageWeathering::operator()(Mat & input,std::list<std::pair<flo
 
   Mat input_lab_clone = input_lab.clone();
 
-  computeWeatheringImage(input_lab_clone,updated_degree_map,exemplar_lab,exemplar_rect,segmentation,shadow_map,0.5);
+  Mat result = computeWeatheringImage(input_lab_clone,updated_degree_map,exemplar_lab,exemplar_rect,segmentation,shadow_map,0.5);
 
-  Mat output_bgr;
-  cvtColor(input_lab_clone, output_bgr, CV_Lab2BGR);
+  imshow("image weathered",result);
 
-  imshow("image weathered",output_bgr);
-
-  Mat diff = output_bgr - input;
+  Mat diff = result - input;
 
   imshow("image weathered diff",diff);
 
@@ -589,7 +586,16 @@ Mat weathering::ImageWeathering::updateWeatheringDegreeMap(const Mat & degree_ma
 Mat weathering::ImageWeathering::computeWeatheringImage(const Mat & input, const Mat & updated_degree_map, const Mat & exemplar, const Rect2d & exemplar_rect, const Mat & segmentation, const Mat & shadow_map, double threshold)
 {
 
-  Mat output = input.clone();
+  Mat exemplar_bgr;
+  Mat input_bgr;
+
+  cvtColor(exemplar,exemplar_bgr,CV_Lab2BGR);
+  cvtColor(input,input_bgr,CV_Lab2BGR);
+
+
+  Mat output;
+
+  cvtColor(input_bgr,output,CV_BGR2BGRA);
 
   // Parms par défaut : bw:32, bh:32, libsize:64, overlapsize:8; epsilon:0.2
   bool redraw = true;
@@ -597,7 +603,7 @@ Mat weathering::ImageWeathering::computeWeatheringImage(const Mat & input, const
   quilting::DiffSumSqrtAtIJ * diff = new quilting::DiffSumSqrtAtIJ();
   quilting::AverageSumError * ase = new quilting::AverageSumError(diff);
 
-  Mat exemplar_ = exemplar.clone();
+  Mat exemplar_ = exemplar_bgr.clone();
 
   quilting::RandomBlocksGenerator * g = new quilting::RandomBlocksGenerator(exemplar_,16,16,128);
   quilting::TopTenBlockSelector * s = new quilting::TopTenBlockSelector(g,ase, redraw);
@@ -618,9 +624,8 @@ Mat weathering::ImageWeathering::computeWeatheringImage(const Mat & input, const
 
   //tg.setBorderPostTreatement(bpt);
   //tg.setMaskPostTreatement(sm);
-
   tg(output,
-    [input,output,exemplar, exemplar_,exemplar_rect,updated_degree_map,segmentation,shadow_map,threshold](const Mat & in, Mat & out){
+    [input_bgr,output,exemplar_bgr, exemplar_,exemplar_rect,updated_degree_map,segmentation,shadow_map,threshold](const Mat & in, Mat & out){
       if (in.data == output.data) {
         out = Mat(in.rows,in.cols,CV_8UC4);
         for (unsigned int i = 0; i < in.rows; i++) {
@@ -629,14 +634,11 @@ Mat weathering::ImageWeathering::computeWeatheringImage(const Mat & input, const
               if (degree < threshold || segmentation.ptr<unsigned char>(i)[j] == 255) {
                 degree = 0.0;
               }
-              int degree_i = (int)(degree * 255.0);
+              int degree_i = floor(degree * 255.0);
               out.ptr<Vec4b>(i)[j].val[0] = degree_i;
               out.ptr<Vec4b>(i)[j].val[1] = degree_i;
               out.ptr<Vec4b>(i)[j].val[2] = degree_i;
-              out.ptr<Vec4b>(i)[j].val[3] = 0;
-              if (degree_i == 0) {
-                out.ptr<Vec4b>(i)[j].val[3] = 255;
-              }
+              out.ptr<Vec4b>(i)[j].val[3] = 255;
 
           }
         }
@@ -652,7 +654,7 @@ Mat weathering::ImageWeathering::computeWeatheringImage(const Mat & input, const
         for (unsigned int i = 0; i < in.rows; i++) {
           for (unsigned int j = 0; j < in.cols; j++) {
               double degree = degree_map_exemplar.ptr<double>(i)[j];
-              int degree_i = (int)(degree * 255.0);
+              int degree_i = floor(degree * 255.0);
               out.ptr<Vec3b>(i)[j].val[0] = degree_i;
               out.ptr<Vec3b>(i)[j].val[1] = degree_i;
               out.ptr<Vec3b>(i)[j].val[2] = degree_i;
@@ -672,6 +674,10 @@ Mat weathering::ImageWeathering::computeWeatheringImage(const Mat & input, const
 
   std::cout << "post treatement" << '\n';
 
+  imshow("image weathered 2",output);
+
+  waitKey(0);
+
   for (unsigned int i = 0; i < output.rows; i++) {
     for (unsigned int j = 0; j < output.cols; j++) {
       double degree = updated_degree_map.ptr<double>(i)[j];
@@ -679,9 +685,9 @@ Mat weathering::ImageWeathering::computeWeatheringImage(const Mat & input, const
         degree = 0.0;
       }
       if (segmentation.ptr<double>(i)[j] == 0) {
-        output.ptr<Vec3b>(i)[j].val[0] = (output.ptr<Vec3b>(i)[j].val[0] * degree + input.ptr<Vec3b>(i)[j].val[0] * (1-degree)) * shadow_map.ptr<double>(i)[j];
-        output.ptr<Vec3b>(i)[j].val[1] = output.ptr<Vec3b>(i)[j].val[1] * degree + input.ptr<Vec3b>(i)[j].val[1] * (1-degree);
-        output.ptr<Vec3b>(i)[j].val[2] = output.ptr<Vec3b>(i)[j].val[2] * degree + input.ptr<Vec3b>(i)[j].val[2] * (1-degree);
+        output.ptr<Vec4b>(i)[j].val[0] = (output.ptr<Vec4b>(i)[j].val[0] * degree + input.ptr<Vec4b>(i)[j].val[0] * (1-degree)) * shadow_map.ptr<double>(i)[j];
+        output.ptr<Vec4b>(i)[j].val[1] = output.ptr<Vec4b>(i)[j].val[1] * degree + input.ptr<Vec4b>(i)[j].val[1] * (1-degree);
+        output.ptr<Vec4b>(i)[j].val[2] = output.ptr<Vec4b>(i)[j].val[2] * degree + input.ptr<Vec4b>(i)[j].val[2] * (1-degree);
       }
 
 
