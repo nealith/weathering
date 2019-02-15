@@ -46,7 +46,7 @@ namespace weathering {
     Mat computeWeatheringDegreeMap(const Mat & user_input_grabcut, const Mat & mask_input_grabcut, Rect2d * user_input);
     Mat computeShadowMap(const Mat & user_input_grabcut, const Mat & mask_input_grabcut, const Mat & degree_map, const Mat & segmentation);
     Mat segment(const Mat & degree_map, const Mat & mask_input_grabcut);
-    Mat computeWeatheringExemplar(Mat & user_input_grabcut, Mat & degree_map, Rect2d & coord);
+    Mat computeWeatheringExemplar(const Mat & user_input_grabcut,const Mat & degree_map, Rect2d & coord);
     Mat updateWeatheringDegreeMap(const Mat & degree_map, const Mat & segmentation, unsigned int degree);
     Mat computeWeatheringImage(const Mat & input, const Mat & updated_degree_map, const Mat & exemplar, const Rect2d & exemplar_rect, const Mat & segmentation, const Mat & shadow_map, double threshold);
 

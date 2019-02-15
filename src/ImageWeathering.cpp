@@ -60,8 +60,14 @@ void weathering::ImageWeathering::operator()(Mat & input,std::list<std::pair<flo
     }
   }
 
+  imwrite("degree_map.png", degree_map_uchar);
+
   imshow("degree_map", degree_map_uchar);
+  imwrite("shadow_map.png", shadow_map_uchar);
+
   imshow("shadow_map", shadow_map_uchar);
+  imwrite("segmentation.png", segmentation);
+
   imshow("segmentation", segmentation);
 
 
@@ -69,13 +75,15 @@ void weathering::ImageWeathering::operator()(Mat & input,std::list<std::pair<flo
   Rect2d exemplar_rect;
   Mat exemplar = computeWeatheringExemplar(input,degree_map,exemplar_rect);
 
+  imwrite("exemplar.png",exemplar);
+
   imshow("exemplar",exemplar);
   Mat exemplar_lab;
   cvtColor(exemplar, exemplar_lab, CV_BGR2Lab);
 
 
   std::cout << "update degree map..." << '\n';
-  Mat updated_degree_map = updateWeatheringDegreeMap(degree_map,segmentation,10);
+  Mat updated_degree_map = updateWeatheringDegreeMap(degree_map,segmentation,100);
 
   Mat updated_degree_map_uchar(degree_map.rows, degree_map.cols, CV_8UC1);
 
@@ -89,6 +97,8 @@ void weathering::ImageWeathering::operator()(Mat & input,std::list<std::pair<flo
 
   std::cout << "finish" << '\n';
 
+  imwrite("updated_degree_map.png",updated_degree_map_uchar);
+
   imshow("updated_degree_map",updated_degree_map_uchar);
 
   Mat input_lab_clone = input_lab.clone();
@@ -98,9 +108,13 @@ void weathering::ImageWeathering::operator()(Mat & input,std::list<std::pair<flo
   Mat result_bgr;
   cvtColor(result,result_bgr,CV_Lab2BGR);
 
+  imwrite("image weathered.png",result_bgr);
+
   imshow("image weathered",result_bgr);
 
   Mat diff = result_bgr - input;
+
+  imwrite("image weathered diff.png",diff);
 
   imshow("image weathered diff",diff);
 
@@ -489,7 +503,7 @@ Mat patch_match(const Mat & to_fill, const Mat & to_fill_mask, const Mat & exemp
 
 }
 
-Mat weathering::ImageWeathering::computeWeatheringExemplar(Mat & user_input_grabcut, Mat & degree_map, Rect2d & coord)
+Mat weathering::ImageWeathering::computeWeatheringExemplar(const Mat & user_input_grabcut,const Mat & degree_map, Rect2d & coord)
 {
 
   int s(300);
@@ -536,7 +550,7 @@ Mat weathering::ImageWeathering::computeWeatheringExemplar(Mat & user_input_grab
 Mat weathering::ImageWeathering::updateWeatheringDegreeMap(const Mat & degree_map, const Mat & segmentation, unsigned int degree)
 {
 
-  double ks = 0.25;
+  double ks = 0.025;
   double kw = 1.0;
 
   Mat propagation_map = degree_map.clone();
@@ -641,6 +655,8 @@ Mat weathering::ImageWeathering::computeWeatheringImage(const Mat & input, const
   tg(output);
 
   std::cout << "post treatement" << '\n';
+
+  imwrite("texture generated.png",output);
 
   imshow("texture generated",output);
 
