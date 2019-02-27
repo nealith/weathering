@@ -37,7 +37,7 @@ namespace weathering {
   public:
     ImageWeathering();
     ~ImageWeathering();
-    void operator()(Mat & input,std::list<std::pair<float,Mat *>> & output, std::list<std::pair<float,Mat *>> * weatheringMaps = nullptr, Mat * shadowMap = nullptr );
+    void operator()(const Mat & input,std::vector<std::pair<unsigned int,Mat*>> & output, std::vector<std::pair<unsigned int,Mat*>> * weathered_map = nullptr, Mat * shadowMap = nullptr, bool grabcut = true);
 
   protected:
 
@@ -48,7 +48,8 @@ namespace weathering {
     Mat segment(const Mat & degree_map, const Mat & mask_input_grabcut);
     Mat computeWeatheringExemplar(const Mat & user_input_grabcut,const Mat & degree_map, Rect2d & coord);
     Mat updateWeatheringDegreeMap(const Mat & degree_map, const Mat & segmentation, unsigned int degree);
-    Mat computeWeatheringImage(const Mat & input, const Mat & updated_degree_map, const Mat & exemplar, const Rect2d & exemplar_rect, const Mat & segmentation, const Mat & shadow_map, double threshold);
+    Mat computeWeatheringImage(const Mat & input, const Mat & generated_texture, const Mat & updated_degree_map, const Mat & exemplar, const Mat & segmentation, const Mat & shadow_map, double threshold);
+    Mat computeTexture(const Mat & input_bgr,const Mat & exemplar_bgr, const Mat & segmentation);
 
   public:
 

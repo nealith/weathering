@@ -24,7 +24,7 @@ pair<int, int> quilting::ClassicPositionChooser::operator()(int blocksWidth, int
       m_nextJ += blocksWidth - overlapSize;
     }
 
-  if (m_nextI + blocksHeight >= m_height - overlapSize && m_nextJ + blocksWidth >= m_width - overlapSize) {
+  if (m_nextI + blocksHeight >= m_height - overlapSize && m_nextJ + blocksWidth - overlapSize >= m_width) {
       m_continue = false;
     }
 
