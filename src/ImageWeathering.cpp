@@ -34,11 +34,10 @@ void weathering::ImageWeathering::operator()(const Mat & input,std::vector<std::
   Mat * user_input_grabcut;
   Rect2d * user_input;
   Mat input_lab;
+  cvtColor(input, input_lab, CV_BGR2Lab);
 
   if (grabcut) {
     user_input_grabcut = grabCut(input);
-
-    cvtColor(input, input_lab, CV_BGR2Lab);
   } else {
     user_input_grabcut = new Mat[4];
     user_input_grabcut[3] = input.clone();
@@ -119,13 +118,10 @@ void weathering::ImageWeathering::operator()(const Mat & input,std::vector<std::
 
     waitKey(0);
 
-    std::cout << "ddddddd" << '\n';
     Mat result = computeWeatheringImage(input_lab,generated_texture,updated_degree_map,exemplar_lab,segmentation,shadow_map,0.5);
-    std::cout << "aaaaaaa" << '\n';
     Mat result_bgr;
     cvtColor(result,result_bgr,CV_Lab2BGR);
     output[i].second = new Mat(result_bgr);
-    std::cout << "qsxqcqsg" << '\n';
 
     imwrite("image weathered"+std::to_string((*weathered_map)[i].first)+".png",result_bgr);
 
@@ -228,7 +224,7 @@ double weathering::objective_function_degree_map(const std::vector<double> &x, s
 Mat weathering::ImageWeathering::computeWeatheringDegreeMap(const Mat & user_input_grabcut, const Mat & mask_input_grabcut, Rect2d * user_input)
 {
 
-  Mat dm(user_input_grabcut.rows, user_input_grabcut.cols, CV_64FC1);
+  Mat dm(user_input_grabcut.rows, user_input_grabcut.cols, CV_64FC1, Scalar(0.0));
 
   std::cout << "Compute Weathering Degree Map ..." << '\n';
 
@@ -326,6 +322,15 @@ Mat weathering::ImageWeathering::computeWeatheringDegreeMap(const Mat & user_inp
     }
   }
 
+  for (unsigned int i = 0; i < dm.rows; i++) {
+    double * ptr_dm = dm.ptr<double>(i);
+    for (unsigned int j = 0; j < dm.cols; j++) {
+      if (ptr_dm[j] < 0.01) {
+        ptr_dm[j] = 0.01;
+      }
+    }
+  }
+
 
 
 
@@ -385,7 +390,7 @@ double weathering::objective_function_segmentation(const std::vector<double> &x,
 Mat weathering::ImageWeathering::segment(const Mat & degree_map, const Mat & mask_input_grabcut)
 {
 
-  Mat segmentation(degree_map.rows, degree_map.cols,CV_8UC1);
+  Mat segmentation(degree_map.rows, degree_map.cols,CV_8UC1,Scalar(0.0));
 
 
   for (unsigned int i = 0; i < degree_map.rows; i++) {
@@ -418,7 +423,7 @@ Mat weathering::ImageWeathering::computeShadowMap(const Mat & user_input_grabcut
 
   list<wdi> vals;
 
-  Mat shadow_map(user_input_grabcut.rows, user_input_grabcut.cols, CV_64FC1);
+  Mat shadow_map(user_input_grabcut.rows, user_input_grabcut.cols, CV_64FC1,Scalar(0.0));
 
   for (unsigned int i = 0; i < user_input_grabcut.rows; i++) {
     const Vec3b * ptr_user_input_grabcut = user_input_grabcut.ptr<Vec3b>(i);
@@ -563,48 +568,43 @@ Mat weathering::ImageWeathering::updateWeatheringDegreeMap(const Mat & degree_ma
   double ks = 0.025;
   double kw = 1.0;
 
-  Mat propagation_map = degree_map.clone();
   Mat updated_degree_map = degree_map.clone();
+  Mat updated_degree_map_old = degree_map.clone();
   int count;
 
   while (degree != 0) {
-    for (unsigned int i = 0; i < degree_map.rows; i++) {
-      double * ptr_propagation_map = propagation_map.ptr<double>(i);
-      for (unsigned int j = 0; j < degree_map.cols; j++) {
-        count = 0;
+    // for a unknow reason, applying the algorithm to pixel of index (i == 0 || j == 0) create a glitch that propagate with iteration (0 to degree)
 
-
+    for (unsigned int i = 1; i < degree_map.rows; i++) {
+      const double * ptr_updated_degree_map_old = updated_degree_map_old.ptr<double>(i);
+      double * ptr_updated_degree_map = updated_degree_map.ptr<double>(i);
+      for (unsigned int j = 1; j < degree_map.cols; j++) {
         if (segmentation.ptr<unsigned char>(i)[j] == 0) {
-          ptr_propagation_map[j] = 0.0;
+          count = 0;
+          double propagation_value = 0.0;
           for (unsigned int in = fmax(0,i-1); in < fmin(degree_map.rows, i+1); in++) {
             for (unsigned int jn = fmax(0,j-1); jn < fmin(degree_map.cols, j+1); jn++) {
-              ptr_propagation_map[j]+=updated_degree_map.ptr<double>(in)[jn];
+              propagation_value+=updated_degree_map_old.ptr<double>(in)[jn];
               count++;
             }
           }
+          propagation_value /= (double)count;
 
-          ptr_propagation_map[j] /= (double)count;
-        }
-
-
-      }
-    }
-
-    for (unsigned int i = 0; i < degree_map.rows; i++) {
-      const double * ptr_propagation_map = propagation_map.ptr<double>(i);
-      double * ptr_updated_degree_map = updated_degree_map.ptr<double>(i);
-      for (unsigned int j = 0; j < degree_map.cols; j++) {
-        if (segmentation.ptr<unsigned char>(i)[j] == 0) {
-          ptr_updated_degree_map[j] += (ptr_propagation_map[j] * ks*kw);
+          ptr_updated_degree_map[j] = ptr_updated_degree_map_old[j] + propagation_value * ks*kw;
           if (ptr_updated_degree_map[j] > 1.0) {
             ptr_updated_degree_map[j] = 1.0;
+          } else if (ptr_updated_degree_map[j] < 0.01){
+            ptr_updated_degree_map[j] = 0.01;
           }
         }
       }
     }
 
+    updated_degree_map_old = updated_degree_map.clone();
+
     degree--;
   }
+
 
   return updated_degree_map;
 
@@ -626,11 +626,11 @@ Mat weathering::ImageWeathering::computeTexture(const Mat & input_bgr,const Mat 
 
   Mat exemplar_ = exemplar_bgr.clone();
 
-  //quilting::RandomBlocksGenerator * g = new quilting::RandomBlocksGenerator(exemplar_,64,64,128);
-  //quilting::TopTenBlockSelector * s = new quilting::TopTenBlockSelector(g,ase, redraw);
+  quilting::RandomBlocksGenerator * g = new quilting::RandomBlocksGenerator(exemplar_,64,64,128);
+  quilting::TopTenBlockSelector * s = new quilting::TopTenBlockSelector(g,ase, redraw);
 
-  quilting::FullBlocksGenerator * g = new quilting::FullBlocksGenerator(exemplar_, 64, 64);
-  quilting::EpsilonBlockSelector * s = new quilting::EpsilonBlockSelector(g, ase, 0.2);
+  //quilting::FullBlocksGenerator * g = new quilting::FullBlocksGenerator(exemplar_, 64, 64);
+  //quilting::EpsilonBlockSelector * s = new quilting::EpsilonBlockSelector(g, ase, 0.2);
 
   quilting::ClassicPositionChooser * p = new quilting::ClassicPositionChooser();
 
