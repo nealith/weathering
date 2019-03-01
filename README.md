@@ -1,5 +1,31 @@
-# Projet S8 ESIR2 IN
+# Weathering
 
-## Texture Quilting
+Based on *Single Image Weathering via Exemplar Propagation* of Satoshi Iizuka, Yuki Endo, Yoshihiro Kanamori and Jun Mitani
 
-*Tuteur* : Olivier Le Meur
+This project include TextureQuilting, another projet done in 2017-2018
+
+## Requirements :
+
+- OpenCV version > 3.4
+- [NLOpt](https://github.com/stevengj/nlopt)
+
+## To build :
+
+```bash
+
+$ mkdir build
+$ cd build
+$ cmake ..
+$ make
+
+```
+
+## To use :
+
+```bash
+
+$ ./testWeathering <image path> [enable grabcut]
+
+``` 
+
+enable grabcut is 0 or 1 (1 to enable), by default enabled
