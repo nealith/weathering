@@ -13,6 +13,9 @@ This project include TextureQuilting, another projet done in 2017-2018
 
 ```bash
 
+$ git clone https://github.com/nealith/weathering.git
+$ cd weathering
+$ git checkout develop
 $ mkdir build
 $ cd build
 $ cmake ..
