@@ -2,7 +2,7 @@
 
 A student project (made alone) based on *Single Image Weathering via Exemplar Propagation* of Satoshi Iizuka, Yuki Endo, Yoshihiro Kanamori and Jun Mitani. I took a simpler approach of their algorithm to get a firt working version in time.
 
-Exemple : 
+Exemple :
 ![exemple](https://raw.githubusercontent.com/nealith/weathering/develop/exemple.jpg)
 
 100 iterations :
@@ -14,7 +14,7 @@ Exemple :
 ![exemple](https://raw.githubusercontent.com/nealith/weathering/develop/exemple_weathered200.png)
 
 
-This project include TextureQuilting, another projet done in 2017-2018, based on *Image Quilting for Texture Synthesis and Transfer* from Alexei A. Efros and William T. Freeman (and made by [fonspa](https://github.com/fonspa), [Hyanaki](https://github.com/Hyanaki), [biscotteman](https://github.com/biscotteman) and me)
+This project use  [TextureQuilting](https://github.com/nealith/texture-quilting.git)
 
 ## Requirements :
 
@@ -28,6 +28,8 @@ This project include TextureQuilting, another projet done in 2017-2018, based on
 $ git clone https://github.com/nealith/weathering.git
 $ cd weathering
 $ git checkout develop
+$ git submodule init
+$ git submodule update
 $ mkdir build
 $ cd build
 $ cmake ..
@@ -41,6 +43,6 @@ $ make
 
 $ ./testWeathering <image path> [enable grabcut]
 
-``` 
+```
 
 enable grabcut is 0 or 1 (1 to enable), by default enabled
