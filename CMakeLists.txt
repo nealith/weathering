@@ -4,7 +4,7 @@ PROJECT(Weathering)
 
 find_package( OpenCV REQUIRED )
 find_package( NLopt REQUIRED )
-include_directories(${OpenCV_INCLUDE_DIRS} ${NLopt_INCLUDE_DIRS}  ${Weathering_SOURCE_DIR}/includes)
+include_directories(${OpenCV_INCLUDE_DIRS} ${NLopt_INCLUDE_DIRS}  ${Weathering_SOURCE_DIR}/includes ${Weathering_SOURCE_DIR}/lib/TextureQuilting/includes)
 file(GLOB SOURCES
     ./src/*.cpp
 )
@@ -13,7 +13,7 @@ add_compile_options("-g" "-O2")
 
 #TextureQuilting
 
-include(${Weathering_SOURCE_DIR/lib/TextureQuilting})
+add_subdirectory(${Weathering_SOURCE_DIR}/lib/TextureQuilting)
 
 ADD_EXECUTABLE(testWeathering testWeathering.cpp ${SOURCES} )
 ADD_EXECUTABLE(grabcut grabcut.cpp )
