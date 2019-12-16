@@ -1,0 +1,3 @@
+[submodule "lib/TextureQuilting"]
+	path = lib/TextureQuilting
+	url = https://github.com/nealith/texture-quilting
